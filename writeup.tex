@@ -1,0 +1,348 @@
+% Last edited: 2026-10-18 10:39 PDT
+% CS336 Spring 2026 Assignment 1 (basics) writeup.
+% Every "Todo" marks a spot for your answer. Code-only problems have no
+% writeup answer, so they only get a short note.
+
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.6em}
+
+\newcommand{\Todo}{\par\textbf{Todo}\par}
+\newcommand{\CodeOnly}{\par\emph{Code deliverable only. No writeup answer.}\par}
+
+\newcommand{\problem}[2]{%
+  \subsection*{Problem \texttt{#1}: #2}%
+}
+
+\title{CS336 Assignment 1 (basics): Writeup}
+\author{Jacques Attinger}
+\date{Spring 2026}
+
+\begin{document}
+\maketitle
+
+\section*{2 Byte-Pair Encoding (BPE) Tokenizer}
+
+\subsection*{2.1 The Unicode Standard}
+
+\problem{unicode1}{Understanding Unicode (1 point)}
+
+\begin{enumerate}[label=(\alph*)]
+  \item What Unicode character does \texttt{chr(0)} return?
+  \Todo
+  \item How does this character's string representation (\texttt{\_\_repr\_\_()}) differ from its printed representation?
+  \Todo
+  \item What happens when this character occurs in text? Check your guess in the Python interpreter.
+  \Todo
+\end{enumerate}
+
+\subsection*{2.2 Unicode Encodings}
+
+\problem{unicode2}{Unicode Encodings (3 points)}
+
+\begin{enumerate}[label=(\alph*)]
+  \item What are some reasons to prefer training our tokenizer on UTF-8 encoded bytes, rather than UTF-16 or UTF-32?
+  \Todo
+  \item Consider the (incorrect) function \texttt{decode\_utf8\_bytes\_to\_str\_wrong}. Why is it incorrect? Give an example input byte string that yields incorrect results.
+  \Todo
+  \item Give a two-byte sequence that does not decode to any Unicode character(s).
+  \Todo
+\end{enumerate}
+
+\subsection*{2.4 BPE Tokenizer Training}
+
+\problem{train\_bpe}{BPE Tokenizer Training (15 points)}
+
+\CodeOnly
+
+\problem{train\_bpe\_tinystories}{BPE Training on TinyStories (2 points)}
+
+\begin{enumerate}[label=(\alph*)]
+  \item Train a byte-level BPE tokenizer on TinyStories with a maximum vocabulary size of 10,000, including the \texttt{<|endoftext|>} special token. Serialize the vocabulary and merges. How much time and memory did training take? What is the longest token in the vocabulary? Does it make sense?
+  \Todo
+  \item Profile your code. What part of the tokenizer training process takes the most time?
+  \Todo
+\end{enumerate}
+
+\problem{train\_bpe\_expts\_owt}{BPE Training on OpenWebText (2 points)}
+
+\begin{enumerate}[label=(\alph*)]
+  \item Train a byte-level BPE tokenizer on OpenWebText with a maximum vocabulary size of 32,000. Serialize the vocabulary and merges. What is the longest token in the vocabulary? Does it make sense?
+  \Todo
+  \item Compare and contrast the tokenizer you get training on TinyStories versus OpenWebText.
+  \Todo
+\end{enumerate}
+
+\subsection*{2.6 BPE Tokenizer: Encoding and Decoding}
+
+\problem{tokenizer}{Implementing the tokenizer (15 points)}
+
+\CodeOnly
+
+\subsection*{2.7 Experiments}
+
+\problem{tokenizer\_experiments}{Experiments with tokenizers (4 points)}
+
+\begin{enumerate}[label=(\alph*)]
+  \item Sample 10 documents from TinyStories and 10 from OpenWebText. Using your TinyStories (10K) and OpenWebText (32K) tokenizers, encode these documents into integer IDs. What is each tokenizer's compression ratio (bytes/token)?
+  \Todo
+  \item What happens if you tokenize your OpenWebText sample with the TinyStories tokenizer? Compare the compression ratio and/or describe qualitatively what happens.
+  \Todo
+  \item Estimate the throughput of your tokenizer (e.g., in bytes/second). How long would it take to tokenize the Pile dataset (825GB of text)?
+  \Todo
+  \item Encode the TinyStories and OpenWebText training and development datasets into integer token IDs. Why is \texttt{uint16} an appropriate datatype for serializing them?
+  \Todo
+\end{enumerate}
+
+\section*{3 Transformer Language Model Architecture}
+
+\subsection*{3.3 Basic Building Blocks: Linear and Embedding Modules}
+
+\problem{linear}{Implementing the linear module (1 point)}
+
+\CodeOnly
+
+\problem{embedding}{Implement the embedding module (1 point)}
+
+\CodeOnly
+
+\subsection*{3.4 Pre-Norm Transformer Block}
+
+\problem{rmsnorm}{Root Mean Square Layer Normalization (1 point)}
+
+\CodeOnly
+
+\problem{positionwise\_feedforward}{Implement the position-wise feed-forward network (2 points)}
+
+\CodeOnly
+
+\problem{rope}{Implement RoPE (2 points)}
+
+\CodeOnly
+
+\problem{softmax}{Implement softmax (1 point)}
+
+\CodeOnly
+
+\problem{scaled\_dot\_product\_attention}{Implement scaled dot-product attention (5 points)}
+
+\CodeOnly
+
+\problem{multihead\_self\_attention}{Implement causal multi-head self-attention (5 points)}
+
+\CodeOnly
+
+\problem{transformer\_block}{Implement the Transformer block (3 points)}
+
+\CodeOnly
+
+\problem{transformer\_lm}{Implementing the Transformer LM (3 points)}
+
+\CodeOnly
+
+\subsection*{3.6 Resource Accounting}
+
+\problem{transformer\_accounting}{Transformer LM resource accounting (5 points)}
+
+\begin{enumerate}[label=(\alph*)]
+  \item Consider GPT-2 XL with \texttt{vocab\_size} = 50,257, \texttt{context\_length} = 1,024, \texttt{num\_layers} = 48, \texttt{d\_model} = 1,600, \texttt{num\_heads} = 25, and \texttt{d\_ff} = 4,288. How many trainable parameters does the model have? If each parameter is single-precision float, how much memory is needed to load the model?
+  \Todo
+  \item Identify the matrix multiplies needed for one forward pass of GPT-2 XL with a \texttt{context\_length}-token input. List them with descriptions and give the total FLOPs.
+  \Todo
+  \item Based on your analysis, which parts of the model require the most FLOPs?
+  \Todo
+  \item Repeat your analysis for GPT-2 small (12 layers, 768 \texttt{d\_model}, 12 heads), GPT-2 medium (24 layers, 1024 \texttt{d\_model}, 16 heads), and GPT-2 large (36 layers, 1280 \texttt{d\_model}, 20 heads). Give the FLOP breakdown for each model as a proportion of total forward-pass FLOPs. As the model size grows, which parts take up proportionally more or less of the total?
+  \Todo
+  \item Take GPT-2 XL and increase the context length to 16,384. How does the total FLOPs for one forward pass change? How does the relative FLOPs contribution of each component change?
+  \Todo
+\end{enumerate}
+
+\section*{4 Training a Transformer LM}
+
+\subsection*{4.1 Cross-entropy loss}
+
+\problem{cross\_entropy}{Implement cross-entropy (1 point)}
+
+\CodeOnly
+
+\subsection*{4.2 The SGD Optimizer}
+
+\problem{learning\_rate\_tuning}{Tuning the learning rate (1 point)}
+
+Run the SGD example with learning rates 1e1, 1e2, and 1e3 for 10 training iterations. What happens to the loss for each learning rate? Does it decay faster, decay slower, or diverge?
+\Todo
+
+\subsection*{4.3 AdamW}
+
+\problem{adamw}{Implement AdamW (2 points)}
+
+\CodeOnly
+
+\problem{adamw\_accounting}{Resource accounting for training with AdamW (2 points)}
+
+Assume float32 for every tensor.
+
+\begin{enumerate}[label=(\alph*)]
+  \item How much peak memory does running AdamW require? Break it down into parameters, activations, gradients, and optimizer state, in terms of \texttt{batch\_size}, \texttt{vocab\_size}, \texttt{context\_length}, \texttt{num\_layers}, \texttt{d\_model}, and \texttt{num\_heads}. Assume $d_{\text{ff}} = \frac{8}{3} d_{\text{model}}$. Count only the activation components listed in the handout (RMSNorms, attention sublayer, SwiGLU, final RMSNorm, output embedding, and cross-entropy on logits).
+  \Todo
+  \item Instantiate your answer for GPT-2 XL to get an expression that depends only on \texttt{batch\_size}. What is the maximum batch size that fits in 80GB of memory? Give an expression of the form $a \cdot \texttt{batch\_size} + b$ and the numerical maximum batch size.
+  \Todo
+  \item How many FLOPs does one step of AdamW take? Give an algebraic expression with a brief justification.
+  \Todo
+  \item An NVIDIA H100 has a theoretical peak of 495 teraFLOP/s for float32 operations. Assume 50\% MFU. Following Kaplan et al.\ and Hoffmann et al., assume the backward pass has twice the FLOPs of the forward pass. How many hours would it take to train GPT-2 XL for 400K steps at batch size 1024 on a single H100? Give a brief justification.
+  \Todo
+\end{enumerate}
+
+\subsection*{4.4 Learning Rate Scheduling}
+
+\problem{learning\_rate\_schedule}{Implement cosine learning rate schedule with warmup (1 point)}
+
+\CodeOnly
+
+\subsection*{4.5 Gradient Clipping}
+
+\problem{gradient\_clipping}{Implement gradient clipping (1 point)}
+
+\CodeOnly
+
+\section*{5 Training Loop}
+
+\subsection*{5.1 Data Loader}
+
+\problem{data\_loading}{Implement data loading (2 points)}
+
+\CodeOnly
+
+\subsection*{5.2 Checkpointing}
+
+\problem{checkpointing}{Implement model checkpointing (1 point)}
+
+\CodeOnly
+
+\subsection*{5.3 Training Loop}
+
+\problem{training\_together}{Put it together (4 points)}
+
+\CodeOnly
+
+\section*{6 Generating Text}
+
+\problem{decoding}{Decoding (3 points)}
+
+\CodeOnly
+
+\section*{7 Experiments}
+
+\subsection*{7.1 How to Run Experiments and Deliverables}
+
+\problem{experiment\_log}{Experiment logging (3 points)}
+
+Submit your logging infrastructure code (code deliverable) and an experiment log. The log should be a document of all the things you tried for the assignment problems in this section.
+\Todo
+
+\subsection*{7.2 TinyStories}
+
+\problem{learning\_rate}{Tune the learning rate, 2 B200 hrs (3 points)}
+
+\begin{enumerate}[label=(\alph*)]
+  \item Perform a hyperparameter sweep over learning rates and report the final losses (or note divergence). Show learning curves for multiple learning rates, and explain your search strategy. Also report the final model's per-token validation loss on TinyStories, which must be at most 1.45.
+  \Todo
+  \item Investigate how the point at which learning rates diverge is related to your best learning rate. Include learning curves of increasing learning rate, with at least one divergent run, and analyze how this relates to convergence rates.
+  \Todo
+\end{enumerate}
+
+\problem{batch\_size\_experiment}{Batch size variations, 1 B200 hr (1 point)}
+
+Vary your batch size from 1 to the GPU memory limit. Try several batch sizes, including 64 and 128. Re-optimize the learning rate if necessary.
+
+\begin{enumerate}[label=(\alph*)]
+  \item Learning curves for runs with different batch sizes.
+  \Todo
+  \item A few sentences on your findings about batch sizes and their impact on training.
+  \Todo
+\end{enumerate}
+
+\problem{generate}{Generate text (1 point)}
+
+Using your decoder and trained checkpoint, generate text. You may need to tune temperature, top-$p$, etc. to get fluent output.
+
+\begin{enumerate}[label=(\alph*)]
+  \item A text dump of at least 256 tokens (or until the first \texttt{<|endoftext|>} token).
+  \Todo
+  \item A brief comment on the fluency of this output and at least two factors that affect how good or bad it is.
+  \Todo
+\end{enumerate}
+
+\subsection*{7.3 Ablations and Architecture Modification}
+
+\problem{layer\_norm\_ablation}{Remove RMSNorm and train, 0.5 B200 hrs (1 point)}
+
+Remove all RMSNorms from your Transformer and train. What happens at the previous optimal learning rate? Can you get stability with a lower learning rate?
+
+\begin{enumerate}[label=(\alph*)]
+  \item A learning curve for the run without RMSNorms, and a learning curve for the best learning rate.
+  \Todo
+  \item A few sentences on the impact of RMSNorm.
+  \Todo
+\end{enumerate}
+
+\problem{pre\_norm\_ablation}{Implement post-norm and train, 0.5 B200 hrs (1 point)}
+
+Modify your pre-norm Transformer into a post-norm one and train it.
+
+\begin{enumerate}[label=(\alph*)]
+  \item A learning curve for the post-norm Transformer, compared to the pre-norm one.
+  \Todo
+\end{enumerate}
+
+\problem{no\_pos\_emb}{Implement NoPE, 0.5 B200 hrs (1 point)}
+
+Modify your RoPE Transformer to remove the position embedding information entirely.
+
+\begin{enumerate}[label=(\alph*)]
+  \item A learning curve comparing the performance of RoPE and NoPE.
+  \Todo
+\end{enumerate}
+
+\problem{swiglu\_ablation}{SwiGLU vs. SiLU, 0.5 B200 hrs (1 point)}
+
+Replace SwiGLU with a SiLU feed-forward network, $\text{FFN}_{\text{SiLU}}(x) = W_2\,\text{SiLU}(W_1 x)$, using $d_{\text{ff}} = 4 \times d_{\text{model}}$ so that the parameter count roughly matches.
+
+\begin{enumerate}[label=(\alph*)]
+  \item A learning curve comparing SwiGLU and SiLU feed-forward networks, with approximately matched parameter counts.
+  \Todo
+  \item A few sentences discussing your findings.
+  \Todo
+\end{enumerate}
+
+\subsection*{7.4 Running on OpenWebText}
+
+\problem{main\_experiment}{Experiment on OWT, 2 B200 hrs (2 points)}
+
+Train your language model on OpenWebText with the same architecture and total training iterations as TinyStories. You may need to re-tune hyperparameters.
+
+\begin{enumerate}[label=(\alph*)]
+  \item A learning curve on OpenWebText. Describe the difference in losses from TinyStories, and how we should interpret these losses.
+  \Todo
+  \item Generated text from the OpenWebText model, in the same format as the TinyStories outputs. How fluent is it? Why is the output quality worse even with the same model and compute budget as TinyStories?
+  \Todo
+\end{enumerate}
+
+\subsection*{7.5 Your Own Modification + Leaderboard}
+
+\problem{leaderboard}{Leaderboard, 10 B200 hrs (6 points)}
+
+Train a model under the leaderboard rules (at most 45 minutes on a B200, OpenWebText training data only) to minimize validation loss within 0.75 B200-hours.
+
+\begin{enumerate}[label=(\alph*)]
+  \item The final validation loss, a learning curve with a wall-clock-time x-axis under 45 minutes, and a description of what you did.
+  \Todo
+\end{enumerate}
+
+\end{document}
