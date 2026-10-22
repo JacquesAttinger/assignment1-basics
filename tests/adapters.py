@@ -1,4 +1,4 @@
-# Last edited: 2026-10-22 10:49
+# Last edited: 2026-10-22 10:56
 from __future__ import annotations
 
 import os
@@ -560,7 +560,9 @@ def get_tokenizer(
     Returns:
         A BPE tokenizer that uses the provided vocab, merges, and special tokens.
     """
-    raise NotImplementedError
+    from cs336_basics.tokenizer import Tokenizer
+
+    return Tokenizer(vocab, merges, special_tokens)
 
 
 def run_train_bpe(
