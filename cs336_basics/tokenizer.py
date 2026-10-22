@@ -1,6 +1,9 @@
-# Last edited: 2026-10-22 10:52
+# Last edited: 2026-10-22 10:54
+import os
 import re
+from collections.abc import Iterable, Iterator
 
+from cs336_basics.bpe_io import load_bpe
 from cs336_basics.pretokenize import COMPILED_PAT
 
 
@@ -32,6 +35,17 @@ class Tokenizer:
                 new_id = max(self.vocab, default=-1) + 1
                 self.vocab[new_id] = special_bytes
                 self.bytes_to_id[special_bytes] = new_id
+
+    @classmethod
+    def from_files(
+        cls,
+        vocab_filepath: str | os.PathLike,
+        merges_filepath: str | os.PathLike,
+        special_tokens: list[str] | None = None,
+    ) -> "Tokenizer":
+        """Build a Tokenizer from files written by `cs336_basics.bpe_io.save_bpe`."""
+        vocab, merges = load_bpe(vocab_filepath, merges_filepath)
+        return cls(vocab, merges, special_tokens)
 
     def decode(self, ids: list[int]) -> str:
         """Turn token ids back into text.
@@ -98,3 +112,33 @@ class Tokenizer:
                 merged.append(word[i])
                 i += 1
         return merged
+
+    def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
+        """Lazily yield token ids for a stream of strings (for example, an open text file).
+
+        Only a small buffer is kept in memory. The last pre-token of the buffer is held back
+        until more text arrives, because more text can change it (a word can continue, and a
+        run of whitespace is split differently depending on what follows). That keeps the
+        result identical to calling `encode` on the whole text at once.
+        Limit: a special token must not be split across two items of the iterable.
+        """
+        buffer = ""
+        for chunk in iterable:
+            buffer += chunk
+            safe, buffer = self._split_off_last_pretoken(buffer)
+            yield from self.encode(safe)
+        yield from self.encode(buffer)
+
+    def _split_off_last_pretoken(self, text: str) -> tuple[str, str]:
+        """Return (text that is safe to encode now, the held-back last pre-token)."""
+        pieces = self._split_keeping_special_tokens(text)
+        if not pieces or pieces[-1] in self.special_tokens:
+            return text, ""  # nothing is waiting on more text
+        tail = pieces[-1]
+        last_start = None
+        for match in COMPILED_PAT.finditer(tail):
+            last_start = match.start()
+        if last_start is None:
+            return text, ""
+        cut = len(text) - len(tail) + last_start
+        return text[:cut], text[cut:]
