@@ -35,11 +35,11 @@
 
 \begin{enumerate}[label=(\alph*)]
   \item What Unicode character does \texttt{chr(0)} return?
-  \Todo
+  This call returns the string '\x00'.
   \item How does this character's string representation (\texttt{\_\_repr\_\_()}) differ from its printed representation?
-  \Todo
+  The string representation is '\\x00', while the printed representation is simply empty.
   \item What happens when this character occurs in text? Check your guess in the Python interpreter.
-  \Todo
+  My guess is that it inserts nothing when you print it. However, if you simply get the string representation of it, then it will show up as '\\x00'.
 \end{enumerate}
 
 \subsection*{2.2 Unicode Encodings}
@@ -48,11 +48,11 @@
 
 \begin{enumerate}[label=(\alph*)]
   \item What are some reasons to prefer training our tokenizer on UTF-8 encoded bytes, rather than UTF-16 or UTF-32?
-  \Todo
+  If we use UTF-32, that means we're using 4 bytes to represent every character, which is not space-efficient. We generally only will be using the letters of the alphabet, which can be represented in less bytes, hence making UTF-8 a better option.
   \item Consider the (incorrect) function \texttt{decode\_utf8\_bytes\_to\_str\_wrong}. Why is it incorrect? Give an example input byte string that yields incorrect results.
-  \Todo
+  If you give the string chr(128), you get an error. This is because the function has no way to recognize characters that require more than one byte in UTF-8. It does not understand the notion of continuation bytes.
   \item Give a two-byte sequence that does not decode to any Unicode character(s).
-  \Todo
+  255, 255
 \end{enumerate}
 
 \subsection*{2.4 BPE Tokenizer Training}
