@@ -30,6 +30,8 @@ def test_linear(numpy_snapshot, ts_state_dict, in_embeddings, d_model, d_ff):
 
 
 def test_embedding(numpy_snapshot, ts_state_dict, in_indices, vocab_size, d_model):
+    
+
     embedding_weight = ts_state_dict[0]["token_embeddings.weight"]
     output = run_embedding(
         vocab_size=vocab_size,
@@ -177,8 +179,9 @@ def test_rmsnorm(numpy_snapshot, ts_state_dict, in_embeddings):
     state_dict, _ = ts_state_dict
     reference_weights = state_dict["layers.1.ln1.weight"]
     d_model = reference_weights.shape[0]
-
+    print('about to run rumsnorm')
     actual_output = run_rmsnorm(d_model=d_model, eps=1e-5, weights=reference_weights, in_features=in_embeddings)
+    print('finished running rmsnorm, about to test whether it matches the expected output')
 
     numpy_snapshot.assert_match(actual_output, atol=1e-4)
 
