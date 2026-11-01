@@ -56,7 +56,12 @@ def run_embedding(
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
 
-    raise NotImplementedError
+    from cs336_basics.nn import Embedding
+    
+    embedding = Embedding(num_embeddings=vocab_size, embedding_dim=d_model)
+    embedding = embedding.to(device=weights.device, dtype=weights.dtype)
+    embedding.load_state_dict({"W": weights})
+    return embedding(token_ids)
 
 
 def run_swiglu(
@@ -383,7 +388,17 @@ def run_rmsnorm(
         Float[Tensor,"... d_model"]: Tensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    raise NotImplementedError
+
+    from cs336_basics.nn import RMSNorm
+
+    RMSNorm = RMSNorm(d_model=d_model, eps=eps, rms_weights = weights)
+    print('Instantiated the RMSNorm class')
+    # RMSNorm = RMSNorm.to(device=weights.device, dtype=weights.dtype)
+    print('Selected the weights and datatype to use for running RMSNorm')
+    # RMSNorm.load_state_dict({"W": weights})
+    print('loaded the state dict')
+
+    return RMSNorm(in_features)
 
 
 def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
