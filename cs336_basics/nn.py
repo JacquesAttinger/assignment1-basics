@@ -1,4 +1,4 @@
-# Last edited: 2026-10-29 18:50 UTC
+# Last edited: 2026-11-02 00:04 UTC
 import math
 
 import torch
@@ -73,4 +73,17 @@ class RMSNorm(nn.Module):
                     x[b][tok][i] = (x[b][tok][i] / rms) * self.rms_weights[i]
         return x.to(in_dtype)
 
-        
+class Swiglu(nn.Module):
+    def __init__(self, d_model, d_ff, device=None, dtype=None):
+        super().__init__()
+        self.d_model = d_model
+        self.d_ff = d_ff
+        self.w1 = nn.Parameter(torch.empty(d_ff, d_model, device=device, dtype=dtype))
+        self.w2 = nn.Parameter(torch.empty(d_model, d_ff, device=device, dtype=dtype))
+        self.w3 = nn.Parameter(torch.empty(d_ff, d_model, device=device, dtype=dtype))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        gate = torch.einsum("... d, f d -> ... f", x, self.w1)
+        value = torch.einsum("... d, f d -> ... f", x, self.w3)
+        hidden = torch.nn.functional.silu(gate) * value
+        return torch.einsum("... f, d f -> ... d", hidden, self.w2)
