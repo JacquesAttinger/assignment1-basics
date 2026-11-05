@@ -1,4 +1,4 @@
-# Last edited: 2026-11-05 00:49 UTC
+# Last edited: 2026-11-05 18:03 UTC
 from __future__ import annotations
 
 import os
@@ -459,7 +459,10 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+    max_values = torch.amax(in_features, dim=dim, keepdim=True)
+    shifted_features = in_features - max_values
+    exp_features = torch.exp(shifted_features)
+    return exp_features / exp_features.sum(dim=dim, keepdim=True)
 
 
 def run_cross_entropy(
