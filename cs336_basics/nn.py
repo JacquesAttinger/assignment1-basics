@@ -1,8 +1,32 @@
-# Last edited: 2026-11-02 00:04 UTC
+# Last edited: 2026-11-05 00:46 UTC
 import math
 
 import torch
 import torch.nn as nn
+
+
+class RotaryPositionalEmbedding(nn.Module):
+    def __init__(self, theta: float, d_k: int, max_seq_len: int, device=None):
+        super().__init__()
+        if d_k % 2 != 0:
+            raise ValueError("d_k must be even for pairwise rotary embeddings")
+
+        positions = torch.arange(max_seq_len, device=device, dtype=torch.float32)
+        pair_indices = torch.arange(0, d_k, 2, device=device, dtype=torch.float32)
+        inverse_frequencies = theta ** (-pair_indices / d_k)
+        angles = positions[:, None] * inverse_frequencies[None, :]
+        self.register_buffer("cos", angles.cos(), persistent=False)
+        self.register_buffer("sin", angles.sin(), persistent=False)
+
+    def forward(self, x: torch.Tensor, token_positions: torch.Tensor) -> torch.Tensor:
+        cos = self.cos[token_positions].to(dtype=x.dtype)
+        sin = self.sin[token_positions].to(dtype=x.dtype)
+        pairs = x.reshape(*x.shape[:-1], x.shape[-1] // 2, 2)
+        even, odd = pairs.unbind(dim=-1)
+        rotated_even = even * cos - odd * sin
+        rotated_odd = even * sin + odd * cos
+        return torch.stack((rotated_even, rotated_odd), dim=-1).flatten(start_dim=-2)
+
 
 class Linear(nn.Module):
     def __init__(self, in_features, out_features, device=None, dtype=None):
