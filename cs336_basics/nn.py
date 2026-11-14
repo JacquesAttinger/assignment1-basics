@@ -5,6 +5,30 @@ import torch
 import torch.nn as nn
 
 
+def scaled_dot_product_attention(
+    Q: torch.Tensor,
+    K: torch.Tensor,
+    V: torch.Tensor,
+    mask: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Attend over keys, with True mask entries allowing attention.
+
+    Leading batch dimensions and the mask follow PyTorch broadcasting rules.
+    Queries with no allowed keys return zero.
+    """
+    scores = (Q @ K.transpose(-2, -1)) / math.sqrt(Q.shape[-1])
+    if mask is not None:
+        scores = scores.masked_fill(~mask, float("-inf"))
+        # Avoid an undefined softmax when every key in a row is masked.
+        scores = scores.masked_fill(~mask.any(dim=-1, keepdim=True), 0.0)
+
+    exp_scores = (scores - scores.amax(dim=-1, keepdim=True)).exp()
+    weights = exp_scores / exp_scores.sum(dim=-1, keepdim=True)
+    if mask is not None:
+        weights = weights.masked_fill(~mask, 0.0)
+    return weights @ V
+
+
 class RotaryPositionalEmbedding(nn.Module):
     def __init__(self, theta: float, d_k: int, max_seq_len: int, device=None):
         super().__init__()
