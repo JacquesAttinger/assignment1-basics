@@ -29,6 +29,36 @@ def scaled_dot_product_attention(
     return weights @ V
 
 
+class MultiHeadSelfAttention(nn.Module):
+    """Causal self-attention with independent heads and no positional encoding."""
+
+    def __init__(self, d_model: int, num_heads: int, device=None, dtype=None):
+        super().__init__()
+        if d_model <= 0 or num_heads <= 0 or d_model % num_heads != 0:
+            raise ValueError("d_model and num_heads must be positive, and num_heads must divide d_model")
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.d_head = d_model // num_heads
+        std = math.sqrt(1 / d_model)
+        for name in ("q_proj_weight", "k_proj_weight", "v_proj_weight", "o_proj_weight"):
+            weight = nn.Parameter(torch.empty(d_model, d_model, device=device, dtype=dtype))
+            nn.init.trunc_normal_(weight, mean=0.0, std=std, a=-3 * std, b=3 * std)
+            self.register_parameter(name, weight)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Project all heads at once, then expose the head axis before attention.
+        head_shape = (*x.shape[:-1], self.num_heads, self.d_head)
+        q = (x @ self.q_proj_weight.T).reshape(head_shape).transpose(-3, -2)
+        k = (x @ self.k_proj_weight.T).reshape(head_shape).transpose(-3, -2)
+        v = (x @ self.v_proj_weight.T).reshape(head_shape).transpose(-3, -2)
+
+        seq_len = x.shape[-2]
+        mask = torch.ones(seq_len, seq_len, dtype=torch.bool, device=x.device).tril()
+        attended = scaled_dot_product_attention(q, k, v, mask)
+        concatenated = attended.transpose(-3, -2).reshape(*x.shape[:-1], self.d_model)
+        return concatenated @ self.o_proj_weight.T
+
+
 class RotaryPositionalEmbedding(nn.Module):
     def __init__(self, theta: float, d_k: int, max_seq_len: int, device=None):
         super().__init__()
