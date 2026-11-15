@@ -8,6 +8,7 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath, amssymb}
 \usepackage{enumitem}
+\usepackage{graphicx}
 \usepackage[hidelinks]{hyperref}
 
 \setlength{\parindent}{0pt}
@@ -152,15 +153,58 @@
 
 \begin{enumerate}[label=(\alph*)]
   \item Consider GPT-2 XL with \texttt{vocab\_size} = 50,257, \texttt{context\_length} = 1,024, \texttt{num\_layers} = 48, \texttt{d\_model} = 1,600, \texttt{num\_heads} = 25, and \texttt{d\_ff} = 4,288. How many trainable parameters does the model have? If each parameter is single-precision float, how much memory is needed to load the model?
-  \Todo
+  Each block has $4d_{\text{model}}^2 + 3d_{\text{model}}d_{\text{ff}} + 2d_{\text{model}} = 30{,}825{,}600$ parameters, so 48 blocks have 1,479,628,800 parameters. Adding separate token embedding and output matrices ($2 \cdot 50{,}257 \cdot 1{,}600$) and the final RMSNorm ($1{,}600$) gives 1,640,452,800 parameters, or about 1.64 billion. At 4 bytes per parameter, the weights occupy 6,561,811,200 bytes (6.56 GB, or 6.11 GiB).
   \item Identify the matrix multiplies needed for one forward pass of GPT-2 XL with a \texttt{context\_length}-token input. List them with descriptions and give the total FLOPs.
-  \Todo
+  I assume batch size 1 and sequence length $T=1{,}024$. Using $2mnp$ FLOPs per matrix multiplication, the per-block costs are:
+  \begin{align*}
+    \text{Q/K/V projections} &: 6Td_{\text{model}}^2, \\
+    \text{attention score and value products} &: 4T^2d_{\text{model}}, \\
+    \text{attention output projection} &: 2Td_{\text{model}}^2, \\
+    \text{three SwiGLU projections} &: 6Td_{\text{model}}d_{\text{ff}}.
+  \end{align*}
+  Across 48 blocks, these cost 754,974,720,000, 322,122,547,200, 251,658,240,000, and 2,023,332,249,600 FLOPs, respectively. The final vocabulary projection costs $2Td_{\text{model}}\,\texttt{vocab\_size}=164{,}682{,}137{,}600$ FLOPs. The total is 3,516,769,894,400 FLOPs (about 3.52 TFLOPs); this counts matrix multiplications and excludes elementwise operations and embedding lookup.
   \item Based on your analysis, which parts of the model require the most FLOPs?
-  \Todo
+  The SwiGLU projections require the most FLOPs, at about 57.5% of the total. The Q/K/V projections account for about 21.5%, followed by attention score and value products at 9.2%, the attention output projection at 7.2%, and the vocabulary projection at 4.7%.
   \item Repeat your analysis for GPT-2 small (12 layers, 768 \texttt{d\_model}, 12 heads), GPT-2 medium (24 layers, 1024 \texttt{d\_model}, 16 heads), and GPT-2 large (36 layers, 1280 \texttt{d\_model}, 20 heads). Give the FLOP breakdown for each model as a proportion of total forward-pass FLOPs. As the model size grows, which parts take up proportionally more or less of the total?
-  \Todo
+  I use $T=1{,}024$, batch size 1, vocabulary size 50,257, and $d_{\text{ff}}$ equal to the nearest multiple of 64 to $8d_{\text{model}}/3$ (2,048, 2,752, and 3,456, respectively). The breakdown is:
+  \begin{center}
+  \small
+  \resizebox{\linewidth}{!}{%
+  \begin{tabular}{lrrrrr}
+    \hline
+    Model & Q/K/V & Attn. QK/AV & Attn. out & SwiGLU & Vocab. out \\
+    \hline
+    GPT-2 small & 14.91\% & 13.25\% & 4.97\% & 39.76\% & 27.10\% \\
+    GPT-2 medium & 18.62\% & 12.42\% & 6.21\% & 50.05\% & 12.70\% \\
+    GPT-2 large & 20.28\% & 10.82\% & 6.76\% & 54.76\% & 7.37\% \\
+    \hline
+  \end{tabular}
+  }
+  \normalsize
+  \end{center}
+  The corresponding totals are approximately 0.292, 0.830, and 1.79 TFLOPs per forward pass. As model size grows, the SwiGLU and Q/K/V projections take a larger proportion of FLOPs, while the vocabulary projection and attention products take a smaller proportion. The attention output projection grows slightly as a proportion.
   \item Take GPT-2 XL and increase the context length to 16,384. How does the total FLOPs for one forward pass change? How does the relative FLOPs contribution of each component change?
-  \Todo
+  With all other GPT-2 XL dimensions unchanged, the breakdown is:
+  \begin{center}
+  \small
+  \resizebox{\linewidth}{!}{%
+  \begin{tabular}{lrr}
+    \hline
+    Component & $T=1{,}024$ & $T=16{,}384$ \\
+    \hline
+    Q/K/V projections & 21.47\% & 9.04\% \\
+    Attention score and value products & 9.16\% & 61.73\% \\
+    Attention output projection & 7.16\% & 3.01\% \\
+    SwiGLU projections & 57.53\% & 24.24\% \\
+    Vocabulary projection & 4.68\% & 1.97\% \\
+    \hline
+    Total FLOPs & 3.52T & 133.58T \\
+    \hline
+  \end{tabular}
+  }
+  \normalsize
+  \end{center}
+  The forward-pass FLOPs increase by about 37.98 times.
 \end{enumerate}
 
 \section*{4 Training a Transformer LM}
