@@ -59,6 +59,36 @@ class MultiHeadSelfAttention(nn.Module):
         return concatenated @ self.o_proj_weight.T
 
 
+class TransformerBlock(nn.Module):
+    """Pre-norm Transformer block with causal attention and rotary embeddings."""
+
+    def __init__(self, d_model: int, num_heads: int, d_ff: int, max_seq_len: int, theta: float):
+        super().__init__()
+        if d_model % num_heads:
+            raise ValueError("num_heads must divide d_model")
+        d_head = d_model // num_heads
+        self.ln1 = RMSNorm(d_model, torch.ones(d_model))
+        self.attn = MultiHeadSelfAttention(d_model, num_heads)
+        self.rope = RotaryPositionalEmbedding(theta, d_head, max_seq_len)
+        self.ln2 = RMSNorm(d_model, torch.ones(d_model))
+        self.ffn = Swiglu(d_model, d_ff)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        normalized = self.ln1(x)
+        head_shape = (*normalized.shape[:-1], self.attn.num_heads, self.attn.d_head)
+        q = (normalized @ self.attn.q_proj_weight.T).reshape(head_shape).transpose(-3, -2)
+        k = (normalized @ self.attn.k_proj_weight.T).reshape(head_shape).transpose(-3, -2)
+        v = (normalized @ self.attn.v_proj_weight.T).reshape(head_shape).transpose(-3, -2)
+        positions = torch.arange(x.shape[-2], device=x.device)
+        q = self.rope(q, positions)
+        k = self.rope(k, positions)
+        causal = torch.ones(x.shape[-2], x.shape[-2], dtype=torch.bool, device=x.device).tril()
+        attended = scaled_dot_product_attention(q, k, v, causal)
+        merged = attended.transpose(-3, -2).reshape(*x.shape[:-1], self.attn.d_model)
+        x = x + merged @ self.attn.o_proj_weight.T
+        return x + self.ffn(self.ln2(x))
+
+
 class RotaryPositionalEmbedding(nn.Module):
     def __init__(self, theta: float, d_k: int, max_seq_len: int, device=None):
         super().__init__()
@@ -137,19 +167,12 @@ class RMSNorm(nn.Module):
         self.rms_weights = nn.Parameter(rms_weights)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # Reference loop-based implementation:
-        in_dtype = x.dtype
-        x = x.to(torch.float32)
-        batches, tokens, d_model = x.shape
-        for b in range(batches):
-            for tok in range(tokens):
-                summation_value = 0
-                for i in range(d_model):
-                    summation_value += torch.pow(x[b][tok][i], 2)
-                rms = torch.sqrt(self.eps + summation_value / self.d_model)
-                for i in range(d_model):
-                    x[b][tok][i] = (x[b][tok][i] / rms) * self.rms_weights[i]
-        return x.to(in_dtype)
+        input_dtype = x.dtype
+        x_float = x.to(torch.float32)
+        weights_float = self.rms_weights.to(torch.float32)
+        mean_square = x_float.square().mean(dim=-1, keepdim=True)
+        normalized = x_float * torch.rsqrt(mean_square + self.eps)
+        return (normalized * weights_float).to(input_dtype)
 
 class Swiglu(nn.Module):
     def __init__(self, d_model, d_ff, device=None, dtype=None):
