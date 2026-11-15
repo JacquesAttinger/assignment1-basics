@@ -423,7 +423,35 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    from cs336_basics.nn import RMSNorm
+
+    if in_indices.shape[-1] > context_length:
+        raise ValueError("input sequence length cannot exceed context_length")
+    token_embeddings = torch.nn.functional.embedding(in_indices, weights["token_embeddings.weight"])
+    hidden = token_embeddings
+    for layer_index in range(num_layers):
+        layer_prefix = f"layers.{layer_index}."
+        layer_weights = {
+            key.removeprefix(layer_prefix): value
+            for key, value in weights.items()
+            if key.startswith(layer_prefix)
+        }
+        hidden = run_transformer_block(
+            d_model=d_model,
+            num_heads=num_heads,
+            d_ff=d_ff,
+            max_seq_len=context_length,
+            theta=rope_theta,
+            weights=layer_weights,
+            in_features=hidden,
+        )
+
+    final_norm = RMSNorm(d_model, weights["ln_final.weight"]).to(
+        device=hidden.device, dtype=hidden.dtype
+    )
+    final_norm.load_state_dict({"rms_weights": weights["ln_final.weight"]})
+    normalized = final_norm(hidden)
+    return normalized @ weights["lm_head.weight"].T
 
 
 def run_rmsnorm(
